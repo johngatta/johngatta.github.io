@@ -1,1 +1,449 @@
-This is an html file for charts.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prototype Proficiency Scatter</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      min-height: 100vh;
+    }
+    .header {
+      background: #1e3a5f;
+      color: white;
+      padding: 1rem 1.5rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .layout {
+      display: flex;
+      min-height: calc(100vh - 56px);
+    }
+    .sidebar {
+      width: 280px;
+      background: white;
+      border-right: 1px solid #e0e0e0;
+      padding: 1.25rem;
+      overflow-y: auto;
+    }
+    .sidebar-section {
+      margin-bottom: 1.5rem;
+    }
+    .sidebar-section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #5a6c7d;
+      margin-bottom: 0.75rem;
+    }
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .pill {
+      padding: 0.5rem 1rem;
+      border-radius: 999px;
+      border: 1px solid #c5d0dc;
+      background: white;
+      color: #333;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .pill:hover {
+      background: #e8eef4;
+      border-color: #1e3a5f;
+    }
+    .pill.active {
+      background: #1e3a5f;
+      border-color: #1e3a5f;
+      color: white;
+    }
+    .filter-row {
+      margin-bottom: 0.75rem;
+    }
+    .filter-row label {
+      display: block;
+      font-size: 0.85rem;
+      color: #555;
+      margin-bottom: 0.35rem;
+    }
+    .filter-row input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #c5d0dc;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    .filter-row input:focus {
+      outline: none;
+      border-color: #1e3a5f;
+      box-shadow: 0 0 0 2px rgba(30, 58, 95, 0.2);
+    }
+    .main {
+      flex: 1;
+      padding: 1.25rem;
+      background: #f5f5f5;
+    }
+    .chart-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .chart-container {
+      background: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border: 1px solid #e0e0e0;
+      position: relative;
+      height: calc(100vh - 180px);
+      min-height: 400px;
+    }
+    .chart-wrapper {
+      position: relative;
+      height: 100%;
+      width: 100%;
+    }
+    .chart-wrapper canvas {
+      max-height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">Prototype Proficiency Scatter</header>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Data Sets</div>
+        <div class="pills" id="dataSetPills">
+          <button type="button" class="pill active" data-set="act">ACT</button>
+          <button type="button" class="pill" data-set="iar">IAR</button>
+          <button type="button" class="pill" data-set="map">MAP</button>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Performance Filters</div>
+        <div class="filter-row">
+          <label>Met Benchmark</label>
+          <div class="pills" id="metBenchmarkPills">
+            <button type="button" class="pill active" data-value="all">All</button>
+            <button type="button" class="pill" data-value="yes">Yes</button>
+            <button type="button" class="pill" data-value="no">No</button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <label>Scores Above</label>
+          <input type="number" id="scoresAbove" placeholder="Optional min score">
+        </div>
+        <div class="filter-row">
+          <label>Scores Below</label>
+          <input type="number" id="scoresBelow" placeholder="Optional max score">
+        </div>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="chart-pills" id="chartTypePills">
+        <button type="button" class="pill active" data-type="horizontal-dot">Horizontal Dot Plot</button>
+        <button type="button" class="pill" data-type="vertical-dot">Vertical Dot Plot</button>
+        <button type="button" class="pill" data-type="horizontal-bar">Horizontal Bar Chart</button>
+        <button type="button" class="pill" data-type="vertical-bar">Vertical Bar Chart</button>
+      </div>
+      <div class="chart-container">
+        <div class="chart-wrapper">
+          <canvas id="chartCanvas"></canvas>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const BENCHMARKS = { act: 21, iar: 748, map: 219 };
+
+    const RAW_DATA = {
+      act: [
+        [6,1],[7,1],[9,4],[10,2],[11,1],[12,6],[13,24],[14,32],[15,38],[16,49],[17,30],[18,38],[19,24],[20,12],[21,22],[22,15],[23,31],[24,40],[25,43],[26,38],[27,31],[28,24],[29,14],[30,19],[31,17],[32,15],[33,18],[34,18],[35,34],[36,31]
+      ],
+      iar: [
+        [650,6],[661,1],[662,5],[672,6],[680,8],[681,6],[688,11],[694,16],[695,2],[700,13],[706,15],[711,22],[715,13],[716,10],[720,8],[721,12],[724,11],[725,11],[728,6],[729,13],[732,8],[733,11],[735,4],[737,16],[739,9],[741,7],[742,13],[744,10],[745,12],[748,11],[749,9],[751,9],[752,12],[754,8],[755,9],[758,20],[761,18],[764,18],[767,13],[769,9],[770,10],[772,8],[773,14],[775,6],[776,13],[778,6],[779,6],[781,12],[783,11],[784,2],[786,15],[789,10],[792,8],[795,18],[798,5],[799,6],[802,14],[805,11],[809,7],[813,6],[817,1],[822,9],[826,3],[827,2],[832,1],[839,3],[845,1],[850,2]
+      ],
+      map: [
+        [135,1],[136,1],[140,1],[146,1],[147,1],[155,1],[165,1],[169,1],[171,1],[174,1],[176,1],[177,1],[178,1],[180,1],[184,2],[186,2],[187,1],[188,1],[189,2],[191,5],[192,1],[193,1],[194,2],[195,1],[196,1],[197,3],[198,2],[199,2],[200,1],[201,11],[202,7],[203,6],[204,8],[205,10],[206,4],[207,16],[208,9],[209,10],[210,15],[211,10],[212,11],[213,6],[214,15],[215,15],[216,15],[217,17],[218,17],[219,12],[220,16],[221,17],[222,17],[223,10],[224,18],[225,14],[226,6],[227,6],[228,8],[229,13],[230,12],[231,8],[232,15],[233,7],[234,7],[235,12],[236,15],[237,12],[238,6],[239,6],[240,5],[241,6],[242,3],[243,9],[244,6],[245,7],[246,1],[247,6],[248,3],[249,2],[250,2],[251,3],[252,1],[253,5],[254,3],[255,2],[256,1],[257,1],[258,1],[261,1],[262,1],[263,2],[264,3],[265,1],[267,2],[272,1]
+      ]
+    };
+
+    let chart = null;
+    let currentDataSet = 'act';
+    let currentChartType = 'horizontal-dot';
+    let metBenchmark = 'all';
+    let scoresAbove = '';
+    let scoresBelow = '';
+
+    function getFilteredData() {
+      let rows = RAW_DATA[currentDataSet].map(([score, count]) => ({ score, count }));
+      const bench = BENCHMARKS[currentDataSet];
+
+      if (metBenchmark === 'yes') rows = rows.filter(r => r.score >= bench);
+      else if (metBenchmark === 'no') rows = rows.filter(r => r.score < bench);
+
+      const above = scoresAbove !== '' && !isNaN(Number(scoresAbove)) ? Number(scoresAbove) : null;
+      const below = scoresBelow !== '' && !isNaN(Number(scoresBelow)) ? Number(scoresBelow) : null;
+      if (above != null) rows = rows.filter(r => r.score >= above);
+      if (below != null) rows = rows.filter(r => r.score <= below);
+
+      return rows;
+    }
+
+    function getChartTitle() {
+      const titles = {
+        'horizontal-dot': 'Score Distribution Dot Plot (Horizontal)',
+        'vertical-dot': 'Score Distribution Dot Plot (Vertical)',
+        'horizontal-bar': 'Score Distribution Bar Graph (Horizontal)',
+        'vertical-bar': 'Score Distribution Bar Graph (Vertical)'
+      };
+      return titles[currentChartType] || '';
+    }
+
+    function getBenchmarkAnnotation(isHorizontal, labelsOrScores) {
+      const value = BENCHMARKS[currentDataSet];
+      const isBar = currentChartType === 'horizontal-bar' || currentChartType === 'vertical-bar';
+      const pos = isBar && labelsOrScores ? labelsOrScores.indexOf(value) : value;
+      if (pos < 0 && isBar) return null;
+      if (isHorizontal) {
+        return {
+          type: 'line',
+          yMin: pos,
+          yMax: pos,
+          borderColor: 'black',
+          borderWidth: 2,
+          borderDash: [6, 4],
+          label: {
+            display: true,
+            content: 'Proficiency Benchmark',
+            position: 'end'
+          }
+        };
+      } else {
+        return {
+          type: 'line',
+          xMin: pos,
+          xMax: pos,
+          borderColor: 'black',
+          borderWidth: 2,
+          borderDash: [6, 4],
+          label: {
+            display: true,
+            content: 'Proficiency Benchmark',
+            position: 'end'
+          }
+        };
+      }
+    }
+
+    function renderChart() {
+      const data = getFilteredData();
+      const bench = BENCHMARKS[currentDataSet];
+
+      if (chart) chart.destroy();
+
+      const ctx = document.getElementById('chartCanvas').getContext('2d');
+      const isHorizontal = currentChartType === 'horizontal-dot' || currentChartType === 'horizontal-bar';
+      const isDot = currentChartType === 'horizontal-dot' || currentChartType === 'vertical-dot';
+
+      const scores = data.map(r => r.score);
+      const counts = data.map(r => r.count);
+
+      const benchAnnotation = getBenchmarkAnnotation(isHorizontal, isDot ? null : scores);
+      const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 16 / 9,
+        plugins: {
+          title: {
+            display: true,
+            text: getChartTitle(),
+            font: { size: 16 }
+          },
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const d = data[ctx.dataIndex];
+                return d ? `Score: ${d.score}, Students: ${d.count}` : '';
+              }
+            }
+          },
+          annotation: benchAnnotation ? {
+            annotations: { benchmark: benchAnnotation }
+          } : {}
+        }
+      };
+
+      if (currentChartType === 'horizontal-dot') {
+        chart = new Chart(ctx, {
+          type: 'scatter',
+          data: {
+            datasets: [{
+              data: data.map(r => ({ x: r.count, y: r.score })),
+              backgroundColor: 'rgba(255,255,255,0)',
+              borderColor: '#444',
+              borderWidth: 1.5,
+              pointRadius: 8,
+              pointHoverRadius: 10
+            }]
+          },
+          options: {
+            ...commonOptions,
+            scales: {
+              x: {
+                title: { display: true, text: 'Number of Students' },
+                ticks: { stepSize: 1 }
+              },
+              y: {
+                title: { display: true, text: 'Scale Score' },
+                ticks: { stepSize: 1 },
+                reverse: false
+              }
+            }
+          }
+        });
+      } else if (currentChartType === 'vertical-dot') {
+        chart = new Chart(ctx, {
+          type: 'scatter',
+          data: {
+            datasets: [{
+              data: data.map(r => ({ x: r.score, y: r.count })),
+              backgroundColor: 'rgba(255,255,255,0)',
+              borderColor: '#444',
+              borderWidth: 1.5,
+              pointRadius: 8,
+              pointHoverRadius: 10
+            }]
+          },
+          options: {
+            ...commonOptions,
+            scales: {
+              x: {
+                title: { display: true, text: 'Scale Score' },
+                ticks: { stepSize: 1 }
+              },
+              y: {
+                title: { display: true, text: 'Number of Students' },
+                ticks: { stepSize: 1 }
+              }
+            }
+          }
+        });
+      } else if (currentChartType === 'horizontal-bar') {
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: scores,
+            datasets: [{
+              data: counts,
+              backgroundColor: 'rgba(100, 149, 237, 0.5)',
+              borderColor: 'rgba(100, 149, 237, 0.8)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            ...commonOptions,
+            indexAxis: 'y',
+            scales: {
+              x: {
+                title: { display: true, text: 'Number of Students' },
+                ticks: { stepSize: 1 }
+              },
+              y: {
+                title: { display: true, text: 'Scale Score' },
+                ticks: { stepSize: 1 },
+                reverse: true
+              }
+            }
+          }
+        });
+      } else {
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: scores,
+            datasets: [{
+              data: counts,
+              backgroundColor: 'rgba(100, 149, 237, 0.5)',
+              borderColor: 'rgba(100, 149, 237, 0.8)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            ...commonOptions,
+            indexAxis: 'x',
+            scales: {
+              x: {
+                title: { display: true, text: 'Scale Score' },
+                ticks: { stepSize: 1 }
+              },
+              y: {
+                title: { display: true, text: 'Number of Students' },
+                ticks: { stepSize: 1 }
+              }
+            }
+          }
+        });
+      }
+
+    }
+
+    document.querySelectorAll('#dataSetPills .pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#dataSetPills .pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentDataSet = btn.dataset.set;
+        renderChart();
+      });
+    });
+
+    document.querySelectorAll('#metBenchmarkPills .pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#metBenchmarkPills .pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        metBenchmark = btn.dataset.value;
+        renderChart();
+      });
+    });
+
+    document.querySelectorAll('#chartTypePills .pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#chartTypePills .pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentChartType = btn.dataset.type;
+        renderChart();
+      });
+    });
+
+    document.getElementById('scoresAbove').addEventListener('input', e => {
+      scoresAbove = e.target.value;
+      renderChart();
+    });
+    document.getElementById('scoresBelow').addEventListener('input', e => {
+      scoresBelow = e.target.value;
+      renderChart();
+    });
+
+    renderChart();
+  </script>
+</body>
+</html>
+
