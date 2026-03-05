@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Indicators Histogram Mock (Single File)</title>
+  <style>
+:root{
+  --bg:#f2f4f7;
+  --text:#0f172a;
+  --border:rgba(0,0,0,.12);
+  --shadow:0 10px 20px rgba(0,0,0,.18);
+  --navy:#0b3f67;
+  --navy2:#0a3558;
+  --green:#4DAF51;
+  --red:#F44538;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app{display:flex; min-height:100vh;}
+.rail{
+  width:56px; background:#ffffff;
+  border-right:1px solid var(--border);
+  display:flex; flex-direction:column; align-items:center;
+  padding:12px 0; gap:14px;
+}
+.rail__logo{
+  width:28px; height:28px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  color:#1f2937; font-size:18px;
+}
+.rail__icon{
+  width:20px; height:20px; border-radius:4px;
+  background:rgba(15,23,42,.12);
+}
+
+.main{flex:1; display:flex; flex-direction:column;}
+.topbar{
+  height:56px; background:#fff;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 18px;
+}
+.crumbs{display:flex; align-items:center; gap:10px; font-size:13px;}
+.crumbs__link{color:#2b6cb0;}
+.crumbs__sep{color:rgba(0,0,0,.35);}
+.crumbs__current{color:rgba(0,0,0,.75); font-weight:600;}
+
+.topbar__right{display:flex; align-items:center; gap:10px;}
+.search{
+  display:flex; align-items:center; gap:8px;
+  background:#fff; border:1px solid var(--border);
+  border-radius:6px; padding:6px 10px;
+  min-width:320px;
+}
+.search__input{
+  border:none; outline:none; width:100%;
+  font-size:13px;
+}
+.search__icon{opacity:.55}
+.search__caret{opacity:.6}
+.iconbtn{
+  height:32px; width:32px;
+  border-radius:6px;
+  border:1px solid transparent;
+  background:transparent;
+  cursor:pointer;
+  color:rgba(0,0,0,.65);
+}
+.iconbtn:hover{background:rgba(0,0,0,.04); border-color:rgba(0,0,0,.06);}
+.iconbtn--light{color:#fff;}
+.iconbtn--light:hover{background:rgba(255,255,255,.10); border-color:transparent;}
+.avatar{
+  width:28px; height:28px; border-radius:6px;
+  background:#2b6cb0; color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:13px;
+}
+
+.toolbar{
+  display:flex; align-items:center; gap:10px;
+  padding:14px 18px;
+}
+.btn{
+  height:30px; padding:0 12px;
+  border-radius:4px; border:1px solid var(--border);
+  background:#fff; cursor:pointer;
+  font-size:12px; font-weight:600;
+  color:rgba(0,0,0,.72);
+}
+.btn--primary{
+  background:#3b82f6; border-color:#2f6fda;
+  color:#fff;
+}
+.btn--ghost{background:#fff;}
+.btn--icon{width:30px; padding:0; font-size:16px; line-height:28px;}
+
+.content{padding:0 18px 22px;}
+.card{
+  background:#fff; border:1px solid var(--border);
+  border-radius:6px; box-shadow:0 2px 10px rgba(0,0,0,.08);
+  overflow:hidden;
+}
+.card__header{
+  background:var(--navy);
+  color:#fff;
+  padding:12px 14px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.card__title{display:flex; align-items:center; gap:10px; font-weight:700; font-size:14px;}
+.pencil{opacity:.9}
+.card__actions{display:flex; align-items:center; gap:8px;}
+.btn--pill{
+  height:26px; border-radius:999px;
+  background:#fff; border:1px solid rgba(255,255,255,.35);
+  color:var(--navy2); font-weight:700; font-size:12px;
+}
+.card__body{padding:0;}
+.layout{
+  display:grid;
+  grid-template-columns: 1fr 340px;
+}
+.metrics{
+  display:flex; align-items:flex-end; gap:18px;
+  padding:10px 14px;
+  border-bottom:1px solid var(--border);
+  background:#fff;
+}
+.metric{min-width:120px;}
+.metric__value{font-size:22px; font-weight:800; line-height:1.05;}
+.metric__small{font-size:12px; font-weight:700; opacity:.9;}
+.metric__label{
+  margin-top:2px;
+  font-size:11px; color:rgba(0,0,0,.62);
+  font-weight:700;
+}
+.metric__sub{font-weight:600; color:rgba(0,0,0,.45); margin-left:6px;}
+.metric__muted{font-size:14px; font-weight:700; color:rgba(0,0,0,.50); padding-top:6px;}
+.toggle{
+  margin-left:auto;
+  height:26px;
+  padding:0 10px;
+  border-radius:4px;
+  border:1px solid rgba(11,63,103,.25);
+  background:#0b3f67;
+  color:#fff; font-weight:800; font-size:12px;
+}
+
+.chartWrap{
+  position:relative;
+  padding:12px 14px 44px;
+  height:560px;
+}
+#scoreHistogram{width:100% !important; height:100% !important;}
+
+.sidepanel{
+  border-left:1px solid var(--border);
+  background:#fff;
+  display:flex; flex-direction:column;
+}
+.sidepanel__header{
+  background:var(--navy);
+  color:#fff;
+  padding:12px 14px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.sidepanel__title{font-weight:800; font-size:14px;}
+.sidepanel__body{padding:12px 12px 10px; display:flex; flex-direction:column; gap:10px;}
+
+.sideSearch{
+  display:flex; align-items:center; gap:8px;
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:8px 10px;
+  background:#fff;
+}
+.sideSearch__input{
+  border:none; outline:none; width:100%;
+  font-size:13px;
+}
+.table{border-top:1px solid var(--border); }
+.table__head{
+  display:grid;
+  grid-template-columns: 34px 1fr 88px 96px;
+  padding:10px 0 8px;
+  font-size:11px;
+  color:rgba(0,0,0,.55);
+  font-weight:800;
+}
+.th{padding:0 8px;}
+.th--check{display:flex; justify-content:center;}
+.table__body{
+  display:flex; flex-direction:column;
+  max-height:430px;
+  overflow:auto;
+}
+.row{
+  display:grid;
+  grid-template-columns: 34px 1fr 88px 96px;
+  align-items:center;
+  padding:10px 0;
+  border-top:1px solid rgba(0,0,0,.06);
+  font-size:12px;
+}
+.cell{padding:0 8px;}
+.cell--check{display:flex; justify-content:center;}
+.student{
+  display:flex; align-items:center; gap:10px;
+}
+.badge{
+  width:28px; height:28px; border-radius:999px;
+  background:#0b3f67; color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:900;
+  font-size:12px;
+}
+.growth{color:rgba(0,0,0,.45); font-weight:700;}
+.prof{
+  display:flex; align-items:center; gap:8px;
+}
+.prof__val{color:rgba(0,0,0,.70); font-weight:700;}
+.icon{
+  width:16px; height:16px; border-radius:999px;
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-size:12px; font-weight:900;
+}
+.icon--green{background:var(--green);}
+.icon--red{background:var(--red);}
+
+.pager{
+  display:flex; align-items:center; justify-content:space-between;
+  padding-top:8px;
+  border-top:1px solid rgba(0,0,0,.06);
+}
+.muted{color:rgba(0,0,0,.55); font-size:12px;}
+.select{
+  height:28px; border-radius:4px; border:1px solid var(--border);
+  padding:0 8px; font-size:12px;
+}
+
+/* Tooltip */
+.chart-tooltip{
+  position:absolute;
+  transform:translate(-50%,-100%);
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 80ms ease;
+  background:#fff;
+  border:1px solid rgba(0,0,0,.10);
+  border-radius:10px;
+  box-shadow: var(--shadow);
+  padding:12px 14px;
+  min-width:280px;
+  max-width:360px;
+  color:rgba(0,0,0,.85);
+  font:14px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+.chart-tooltip .tt-body{display:grid;grid-template-columns:1fr;row-gap:8px;}
+.chart-tooltip .tt-row{display:grid;grid-template-columns:140px 1fr;column-gap:10px;align-items:start;}
+.chart-tooltip .tt-label{color:rgba(0,0,0,.60);font-weight:600;white-space:nowrap;}
+.chart-tooltip .tt-value{color:rgba(0,0,0,.85);font-weight:500;}
+.chart-tooltip .tt-students{margin-top:2px;max-height:220px;overflow:auto;padding-right:4px;}
+.chart-tooltip .tt-students .student{color:rgba(0,0,0,.60);line-height:1.25rem; font-weight:500;}
+
+/* Legend under chart */
+.legend{
+  position:absolute;
+  left:14px;
+  bottom:10px;
+  padding:0;
+  font-size:12px;
+  color:rgba(0,0,0,.65);
+  pointer-events:none;
+}
+.legend__item{display:flex;align-items:center;gap:8px;}
+.legend__line{
+  display:inline-block;
+  width:26px;
+  height:0;
+  border-top:2px dashed #000;
+}
+
+  </style>
+  <!-- Requires internet to load Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+</head>
+<body>
+
+  <div class="app">
+    <aside class="rail" aria-label="Navigation">
+      <div class="rail__logo">✦</div>
+      <div class="rail__icon"></div>
+      <div class="rail__icon"></div>
+      <div class="rail__icon"></div>
+      <div class="rail__icon"></div>
+      <div class="rail__icon"></div>
+      <div class="rail__icon"></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="crumbs">
+          <span class="crumbs__link">School Improvement</span>
+          <span class="crumbs__sep">›</span>
+          <span class="crumbs__current">Indicators</span>
+        </div>
+
+        <div class="topbar__right">
+          <div class="search">
+            <span class="search__icon">🔍</span>
+            <input class="search__input" placeholder="Search Students" />
+            <span class="search__caret">▾</span>
+          </div>
+          <button class="iconbtn" title="Help">?</button>
+          <button class="iconbtn" title="Settings">⚙</button>
+          <div class="avatar">J</div>
+        </div>
+      </header>
+
+      <div class="toolbar">
+        <button class="btn btn--primary">＋ Add Filters</button>
+        <button class="btn btn--ghost">× Clear Filters</button>
+        <button class="btn btn--icon" title="Close">×</button>
+      </div>
+
+      <section class="content">
+        <div class="card">
+          <div class="card__header">
+            <div class="card__title">
+              <span>Grade K 2025-2026 FAST Early Math</span>
+              <span class="pencil">✎</span>
+            </div>
+            <div class="card__actions">
+              <button class="btn btn--pill">ⓘ Insights</button>
+              <button class="iconbtn" title="Share">⤴</button>
+              <button class="iconbtn" title="Print">🖨</button>
+              <button class="iconbtn" title="Download">⬇</button>
+              <button class="iconbtn" title="Info">i</button>
+            </div>
+          </div>
+
+          <div class="card__body">
+            <div class="layout">
+              <div class="panel">
+                <div class="metrics">
+  <div class="metric">
+    <div class="metric__value"><span id="metricCount">465</span> <span class="metric__small">Students</span></div>
+    <div class="metric__label">Count</div>
+  </div>
+
+  <div class="metric">
+    <div class="metric__value metric__muted"><span id="metricProjected">NO DATA AVAILABLE</span></div>
+    <div class="metric__label">Projected <span class="metric__sub">Average Score</span></div>
+  </div>
+
+  <div class="metric">
+    <div class="metric__value"><span id="metricProf">82%</span></div>
+    <div class="metric__label">Proficiency <span class="metric__sub">Meets Benchmark</span></div>
+  </div>
+
+  <div class="metric">
+    <div class="metric__value metric__muted" id="metricGrowth">NO DATA AVAILABLE</div>
+    <div class="metric__label">Growth <span class="metric__sub">Effect Size</span></div>
+  </div>
+</div>
+
+<div class="chartWrap" id="chartWrap">
+                  <canvas id="scoreHistogram" aria-label="Score histogram" role="img"></canvas>
+<div class="legend">
+                  <div class="legend__item">
+                    <span class="legend__line"></span>
+                    <span id="benchmarkLegendText">Met or exceeded the Illinois Equated Proficiency Benchmark 2025 (value = 31) — Proficiency Benchmark</span>
+                  </div>
+
+                </div>
+</div>
+              </div>
+
+              <aside class="sidepanel">
+                <div class="sidepanel__header">
+                  <div class="sidepanel__title">Student List</div>
+                  <div class="sidepanel__icons">
+                    <button class="iconbtn iconbtn--light" title="Expand">⤢</button>
+                    <button class="iconbtn iconbtn--light" title="Dock">▣</button>
+                  </div>
+                </div>
+
+                <div class="sidepanel__body">
+                  <div class="sideSearch">
+                    <span class="search__icon">🔍</span>
+                    <input id="listSearch" class="sideSearch__input" placeholder="Search in List" />
+                  </div>
+
+                  <div class="table">
+                    <div class="table__head">
+                      <div class="th th--check"><input type="checkbox" /></div>
+                      <div class="th">Student Name</div>
+                      <div class="th">Growth</div>
+                      <div class="th">Proficiency</div>
+                    </div>
+                    <div id="studentRows" class="table__body"></div>
+                  </div>
+
+                  <div class="pager">
+                    <div class="pager__left">
+                      <span class="muted">Items per page:</span>
+                      <select id="pageSize" class="select">
+                        <option>10</option>
+                        <option>25</option>
+                        <option>50</option>
+                      </select>
+                    </div>
+                    <div class="pager__right">
+                      <span id="pagerText" class="muted">1-10 of 72</span>
+                      <button id="prevBtn" class="iconbtn" title="Prev">‹</button>
+                      <button id="nextBtn" class="iconbtn" title="Next">›</button>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  
+
+<script>
+
+/** Embedded dataset from HistogramTestDataset.csv (compact) */
+const benchmarkScore = 31;
+const studentIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419, 420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444, 445, 446, 447, 448, 449, 450, 451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465];
+const studentScores = [31, 51, 49, 34, 27, 59, 42, 70, 44, 38, 61, 38, 45, 53, 36, 23, 38, 11, 43, 26, 49, 33, 30, 24, 64, 51, 25, 41, 37, 49, 21, 42, 72, 49, 35, 21, 35, 49, 7, 43, 33, 37, 38, 53, 35, 16, 43, 26, 40, 59, 48, 59, 53, 37, 41, 33, 28, 32, 48, 34, 32, 51, 23, 42, 25, 19, 47, 82, 36, 35, 42, 33, 55, 54, 38, 73, 36, 53, 15, 31, 41, 57, 63, 39, 38, 47, 35, 27, 55, 54, 53, 59, 63, 15, 58, 44, 38, 43, 38, 48, 32, 43, 32, 37, 36, 37, 47, 31, 41, 71, 36, 13, 59, 60, 26, 6, 46, 34, 74, 28, 33, 41, 57, 54, 46, 33, 34, 51, 30, 63, 69, 74, 74, 50, 64, 31, 51, 38, 31, 40, 21, 48, 63, 36, 37, 52, 30, 45, 28, 43, 53, 40, 40, 34, 25, 29, 45, 64, 28, 45, 35, 41, 26, 60, 39, 42, 43, 53, 49, 36, 44, 34, 23, 27, 41, 22, 67, 62, 21, 46, 60, 48, 58, 25, 35, 30, 18, 31, 27, 36, 55, 38, 46, 52, 44, 48, 58, 37, 43, 36, 23, 19, 44, 46, 33, 15, 70, 62, 53, 52, 61, 50, 46, 62, 35, 47, 43, 34, 41, 18, 42, 37, 45, 28, 47, 34, 55, 35, 70, 69, 38, 34, 32, 72, 40, 42, 12, 40, 48, 36, 45, 50, 29, 35, 36, 51, 60, 60, 41, 60, 39, 32, 58, 51, 56, 59, 32, 57, 16, 73, 39, 43, 17, 41, 31, 49, 26, 44, 14, 63, 18, 25, 34, 33, 63, 30, 68, 30, 42, 53, 20, 24, 34, 47, 54, 37, 62, 47, 93, 43, 56, 49, 43, 43, 44, 29, 55, 49, 38, 38, 37, 57, 37, 20, 42, 39, 44, 58, 44, 46, 70, 63, 61, 73, 68, 20, 34, 63, 51, 25, 60, 65, 60, 27, 47, 52, 50, 61, 32, 24, 21, 50, 35, 31, 55, 44, 57, 79, 27, 34, 55, 26, 17, 26, 30, 42, 34, 40, 38, 33, 33, 65, 41, 47, 40, 15, 60, 39, 43, 45, 57, 76, 53, 56, 38, 51, 56, 63, 41, 44, 46, 55, 32, 38, 48, 51, 61, 10, 44, 51, 38, 72, 39, 26, 35, 48, 29, 43, 56, 59, 29, 38, 49, 51, 8, 29, 35, 58, 54, 50, 73, 38, 73, 45, 37, 37, 33, 58, 41, 31, 43, 35, 47, 55, 28, 54, 51, 34, 46, 78, 44, 72, 23, 19, 68, 43, 30, 47, 35, 63, 62, 29, 36, 42, 21, 55, 25, 31, 40, 31, 51, 47, 33, 58, 65, 55, 66, 49, 55, 35, 40, 43, 29, 35, 40, 28, 53, 41, 19, 37, 62, 68, 18, 34, 50];
+const scoreDomain = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93];
+const scoreCounts = [1, 1, 1, 0, 1, 1, 1, 1, 1, 4, 2, 2, 4, 4, 3, 6, 1, 5, 3, 7, 8, 6, 7, 8, 8, 11, 9, 12, 16, 17, 12, 14, 19, 7, 11, 14, 11, 18, 13, 8, 9, 12, 9, 11, 7, 14, 4, 11, 6, 12, 5, 6, 8, 7, 9, 5, 6, 10, 3, 3, 1, 1, 4, 2, 4, 1, 4, 5, 3, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+
+const totalStudents = studentIds.length;
+const profPct = Math.round(studentScores.filter(s => s >= benchmarkScore).length / totalStudents * 100);
+
+// Metrics: Projected remains NO DATA AVAILABLE per requirement
+const elCount = document.getElementById("metricCount");
+if (elCount) elCount.textContent = String(totalStudents);
+const elProf = document.getElementById("metricProf");
+if (elProf) elProf.textContent = String(profPct) + "%";
+
+// Build score -> student names map for tooltip (names derived)
+const studentsByScore = new Map();
+for (const s of scoreDomain) studentsByScore.set(String(s), []);
+for (let i=0;i<studentIds.length;i++) {
+  const key = String(studentScores[i]);
+  if (!studentsByScore.has(key)) studentsByScore.set(key, []);
+  studentsByScore.get(key).push(`Student ${studentIds[i]}`);
+}
+
+// External tooltip
+function getOrCreateTooltipEl(chart) {
+  const parent = chart.canvas.parentNode;
+  let el = parent.querySelector(".chart-tooltip");
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "chart-tooltip";
+    parent.appendChild(el);
+  }
+  return el;
+}
+
+function externalTooltipHandler(context) {
+  const { chart, tooltip } = context;
+  const tooltipEl = getOrCreateTooltipEl(chart);
+
+  if (tooltip.opacity === 0) {
+    tooltipEl.style.opacity = 0;
+    return;
+  }
+
+  const dp = tooltip.dataPoints?.[0];
+  if (!dp) return;
+
+  const score = dp.label;
+  const list = studentsByScore.get(String(score)) || [];
+
+  const maxShow = 25;
+  const shown = list.slice(0, maxShow);
+  const remaining = Math.max(0, list.length - shown.length);
+
+  const studentLines = shown.length
+    ? shown.map(s => `<div class="student">${s}</div>`).join("")
+    : `<div class="student">(none)</div>`;
+
+  const moreLine = remaining > 0 ? `<div class="student">+${remaining} more</div>` : "";
+
+  tooltipEl.innerHTML = `
+    <div class="tt-body">
+      <div class="tt-row">
+        <div class="tt-label">Score:</div>
+        <div class="tt-value">${score}</div>
+      </div>
+      <div class="tt-row">
+        <div class="tt-label">Students:</div>
+        <div class="tt-value">
+          <div class="tt-students">${studentLines}${moreLine}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const { offsetLeft, offsetTop } = chart.canvas;
+  tooltipEl.style.left = (offsetLeft + tooltip.caretX) + "px";
+  tooltipEl.style.top  = (offsetTop  + tooltip.caretY) + "px";
+  tooltipEl.style.opacity = 1;
+}
+
+// Benchmark line plugin (short dashes, black)
+const benchmarkLinePlugin = {
+  id: "benchmarkLine",
+  afterDatasetsDraw(chart) {
+    const { ctx, chartArea, scales } = chart;
+    const xScale = scales.x;
+    const idx = scoreDomain.indexOf(benchmarkScore);
+    if (idx === -1) return;
+
+    const x = xScale.getPixelForValue(idx);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#000";
+    ctx.setLineDash([5,4]);
+    ctx.moveTo(x, chartArea.top);
+    ctx.lineTo(x, chartArea.bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+};
+Chart.register(benchmarkLinePlugin);
+
+// Render chart
+const passColor = "#4DAF51";
+const failColor = "#F44538";
+const fillColors = scoreDomain.map(s => (s < benchmarkScore ? failColor : passColor));
+
+const ctx = document.getElementById("scoreHistogram").getContext("2d");
+const chart = new Chart(ctx, {
+  type: "bar",
+  data: {
+    labels: scoreDomain.map(String),
+    datasets: [{
+      data: scoreCounts,
+      backgroundColor: fillColors,
+      borderWidth: scoreDomain.map(() => 0),
+      borderColor: scoreDomain.map(() => "rgba(0,0,0,0)"),
+      borderRadius: 2,
+      categoryPercentage: 0.9,
+      barPercentage: 0.85
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: false, external: externalTooltipHandler }
+    },
+    layout: { padding: { top: 10, right: 14, bottom: 8, left: 10 } },
+    scales: {
+      x: {
+        grid: { display: false },
+        border: { color: "rgba(0,0,0,0.20)" },
+        ticks: {
+          autoSkip: false,
+          maxRotation: 0,
+          color: "rgba(0,0,0,0.55)",
+          font: { size: 12 },
+          callback: (val, index) => {
+            const score = scoreDomain[index];
+            return (score % 5 === 0) ? String(score) : "";
+          }
+        },
+        title: {
+          display: true,
+          text: "Score",
+          color: "rgba(0,0,0,0.60)",
+          font: { size: 13, weight: "600" }
+        }
+      },
+      y: {
+        beginAtZero: true,
+        grid: { display: false },
+        border: { color: "rgba(0,0,0,0.20)" },
+        ticks: {
+          precision: 0,
+          color: "rgba(0,0,0,0.55)",
+          font: { size: 12 }
+        },
+        title: {
+          display: true,
+          text: "Number of Students",
+          color: "rgba(0,0,0,0.60)",
+          font: { size: 13, weight: "600" }
+        }
+      }
+    }
+  }
+
+});
+
+// --------- Selection -> bar highlight (checkbox interactions) ----------
+const selectedStudentIds = new Set();              // student id numbers selected
+const selectedScoreCounts = new Map();             // score -> number of selected students with that score
+
+function applyHighlights() {
+  const bw = scoreDomain.map(s => (selectedScoreCounts.get(s) ? 2 : 0));
+  const bc = scoreDomain.map(s => (selectedScoreCounts.get(s) ? "rgba(59, 130, 246, 0.55)" : "rgba(0,0,0,0)"));
+  chart.data.datasets[0].borderWidth = bw;
+  chart.data.datasets[0].borderColor = bc;
+  chart.update("none");
+}
+
+// Student list (paging + search) — render from arrays (no huge object list)
+let page = 1;
+function getPageSize() {
+  return parseInt(document.getElementById("pageSize").value, 10);
+}
+function buildStudent(i) {
+  const id = studentIds[i];
+  const score = studentScores[i];
+  return { id, name: `Student ${id}`, score, proficient: score >= benchmarkScore };
+}
+function filteredIndices() {
+  const q = (document.getElementById("listSearch").value || "").trim().toLowerCase();
+  if (!q) return null;
+  const out = [];
+  for (let i=0;i<studentIds.length;i++) {
+    const name = `student ${studentIds[i]}`;
+    if (name.includes(q)) out.push(i);
+  }
+  return out;
+}
+function renderRows() {
+  const rowsEl = document.getElementById("studentRows");
+  rowsEl.innerHTML = "";
+
+  const pageSize = getPageSize();
+  const idxs = filteredIndices();
+  const total = idxs ? idxs.length : studentIds.length;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  page = Math.min(page, pages);
+
+  const start = (page - 1) * pageSize;
+  const end = Math.min(total, start + pageSize);
+
+  const frag = document.createDocumentFragment();
+  for (let k=start;k<end;k++) {
+    const i = idxs ? idxs[k] : k;
+    const st = buildStudent(i);
+
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `
+      <div class="cell cell--check"><input type="checkbox" /></div>
+      <div class="cell">
+        <div class="student">
+          <div class="badge">${String(st.id).slice(-1)}</div>
+          <div>${st.name}</div>
+        </div>
+      </div>
+      <div class="cell growth">N/A</div>
+      <div class="cell">
+        <div class="prof">
+          <div class="prof__val">${st.score}</div>
+          <div class="icon ${st.proficient ? "icon--green" : "icon--red"}">${st.proficient ? "✓" : "–"}</div>
+        </div>
+      </div>
+    `;
+    
+    const cb = row.querySelector('input[type="checkbox"]');
+    if (cb) {
+      cb.checked = selectedStudentIds.has(st.id);
+      cb.addEventListener("change", (e) => {
+        const checked = e.target.checked;
+        const score = st.score;
+
+        if (checked) {
+          selectedStudentIds.add(st.id);
+          selectedScoreCounts.set(score, (selectedScoreCounts.get(score) || 0) + 1);
+        } else {
+          selectedStudentIds.delete(st.id);
+          const next = (selectedScoreCounts.get(score) || 0) - 1;
+          if (next <= 0) selectedScoreCounts.delete(score);
+          else selectedScoreCounts.set(score, next);
+        }
+
+        applyHighlights();
+      });
+    }
+frag.appendChild(row);
+  }
+  rowsEl.appendChild(frag);
+
+  document.getElementById("pagerText").textContent = `${start + 1}-${end} of ${total}`;
+  document.getElementById("prevBtn").disabled = (page <= 1);
+  document.getElementById("nextBtn").disabled = (page >= pages);
+}
+document.getElementById("pageSize").addEventListener("change", () => { page = 1; renderRows(); });
+document.getElementById("listSearch").addEventListener("input", () => { page = 1; renderRows(); });
+document.getElementById("prevBtn").addEventListener("click", () => { page = Math.max(1, page - 1); renderRows(); });
+document.getElementById("nextBtn").addEventListener("click", () => { page += 1; renderRows(); });
+renderRows();
+
+</script>
+</body>
+</html>

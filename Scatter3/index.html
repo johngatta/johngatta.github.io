@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prototype Proficiency Scatter</title>
+
+  <!-- Chart.js + Annotation plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#ffffff;
+      --panel:#f3f5f8;
+      --border:#d7dde6;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --blue:#2563eb;
+      --blue-weak:rgba(37,99,235,.16);
+      --blue-bars:rgba(37,99,235,.28);
+      --dot-border:#4b5563;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Helvetica Neue", sans-serif;
+      color:var(--text);
+      background:var(--bg);
+    }
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:16px 18px;
+      border-bottom:1px solid var(--border);
+      background:#fff;
+      position:sticky;
+      top:0;
+      z-index:5;
+    }
+    header h1{
+      margin:0;
+      font-size:18px;
+      font-weight:700;
+      letter-spacing:.2px;
+    }
+    .layout{
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      min-height: calc(100vh - 57px);
+    }
+    aside{
+      border-right:1px solid var(--border);
+      background:var(--panel);
+      padding:14px 14px 18px;
+    }
+    main{
+      padding:16px;
+      background:#fff;
+    }
+    .card{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:14px;
+      box-shadow:0 2px 10px rgba(0,0,0,.04);
+      padding:12px;
+    }
+    .section{
+      margin-bottom:14px;
+      padding-bottom:14px;
+      border-bottom:1px dashed rgba(0,0,0,.08);
+    }
+    .section:last-child{border-bottom:none;padding-bottom:0;margin-bottom:0}
+    .section h2{
+      margin:0 0 10px 0;
+      font-size:13px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+    }
+
+    .pill-row{display:flex;flex-wrap:wrap;gap:8px}
+    .pill{
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      padding:8px 10px;
+      border-radius:999px;
+      font-size:12px;
+      cursor:pointer;
+      user-select:none;
+      transition: .12s ease;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .pill:hover{border-color:#b9c3d2}
+    .pill.active{
+      border-color:rgba(37,99,235,.55);
+      background:var(--blue-weak);
+      color:#0b2a8f;
+      font-weight:600;
+    }
+    .pill .dot{
+      width:8px;height:8px;border-radius:999px;background:var(--blue);opacity:.9;
+    }
+
+    .control{
+      display:grid;
+      gap:6px;
+      margin-top:10px;
+    }
+    label{
+      font-size:12px;
+      color:var(--muted);
+    }
+    input[type="number"]{
+      width:100%;
+      padding:10px 10px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      font-size:13px;
+      outline:none;
+      background:#fff;
+    }
+    input[type="number"]:focus{border-color:rgba(37,99,235,.55); box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    .mini-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+    .linkish{
+      color:var(--blue);
+      cursor:pointer;
+      user-select:none;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .top-controls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:12px;
+    }
+    .chart-wrap{
+      height: calc(100vh - 57px - 40px);
+      min-height: 520px;
+    }
+    canvas{width:100% !important;height:100% !important;}
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Prototype Proficiency Scatter</h1>
+    <div class="hint" id="activeSummary"></div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="section">
+        <h2>Data Sets</h2>
+        <div class="pill-row" id="datasetPills"></div>
+      </div>
+
+      <div class="section">
+        <h2>Performance Filters</h2>
+
+        <div class="mini-row" style="margin-bottom:8px;">
+          <label style="margin:0;">Met Benchmark</label>
+          <span class="linkish" id="clearMet">Clear</span>
+        </div>
+        <div class="pill-row" id="metBenchmarkPills"></div>
+
+        <div class="control">
+          <label for="scoresAbove">Scores Above (keep scores ≥ value)</label>
+          <input type="number" id="scoresAbove" placeholder="(optional)" />
+        </div>
+
+        <div class="control">
+          <label for="scoresBelow">Scores Below (keep scores ≤ value)</label>
+          <input type="number" id="scoresBelow" placeholder="(optional)" />
+        </div>
+
+        <div class="hint" style="margin-top:10px;">
+          Tooltip shows <b>Scale Score</b> and <b>Number of Students</b>.
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="top-controls">
+        <div>
+          <div class="hint" style="margin-bottom:6px;">Visualization</div>
+          <div class="pill-row" id="vizPills"></div>
+        </div>
+
+        <div class="hint" id="benchmarkHint" style="text-align:right;"></div>
+      </div>
+
+      <div class="card chart-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+    </main>
+  </div>
+
+<script>
+(() => {
+  // ----------------------------
+  // Data
+  // ----------------------------
+  const datasets = {
+    ACT: {
+      name: "ACT",
+      benchmark: 21,
+      data: [
+        {score:6,count:1},{score:7,count:1},{score:9,count:4},{score:10,count:2},{score:11,count:1},
+        {score:12,count:6},{score:13,count:24},{score:14,count:32},{score:15,count:38},{score:16,count:49},
+        {score:17,count:30},{score:18,count:38},{score:19,count:24},{score:20,count:12},{score:21,count:22},
+        {score:22,count:15},{score:23,count:31},{score:24,count:40},{score:25,count:43},{score:26,count:38},
+        {score:27,count:31},{score:28,count:24},{score:29,count:14},{score:30,count:19},{score:31,count:17},
+        {score:32,count:15},{score:33,count:18},{score:34,count:18},{score:35,count:34},{score:36,count:31},
+      ]
+    },
+    IAR: {
+      name: "IAR",
+      benchmark: 748,
+      data: [
+        {score:650,count:6},{score:661,count:1},{score:662,count:5},{score:672,count:6},{score:680,count:8},
+        {score:681,count:6},{score:688,count:11},{score:694,count:16},{score:695,count:2},{score:700,count:13},
+        {score:706,count:15},{score:711,count:22},{score:715,count:13},{score:716,count:10},{score:720,count:8},
+        {score:721,count:12},{score:724,count:11},{score:725,count:11},{score:728,count:6},{score:729,count:13},
+        {score:732,count:8},{score:733,count:11},{score:735,count:4},{score:737,count:16},{score:739,count:9},
+        {score:741,count:7},{score:742,count:13},{score:744,count:10},{score:745,count:12},{score:748,count:11},
+        {score:749,count:9},{score:751,count:9},{score:752,count:12},{score:754,count:8},{score:755,count:9},
+        {score:758,count:20},{score:761,count:18},{score:764,count:18},{score:767,count:13},{score:769,count:9},
+        {score:770,count:10},{score:772,count:8},{score:773,count:14},{score:775,count:6},{score:776,count:13},
+        {score:778,count:6},{score:779,count:6},{score:781,count:12},{score:783,count:11},{score:784,count:2},
+        {score:786,count:15},{score:789,count:10},{score:792,count:8},{score:795,count:18},{score:798,count:5},
+        {score:799,count:6},{score:802,count:14},{score:805,count:11},{score:809,count:7},{score:813,count:6},
+        {score:817,count:1},{score:822,count:9},{score:826,count:3},{score:827,count:2},{score:832,count:1},
+        {score:839,count:3},{score:845,count:1},{score:850,count:2},
+      ]
+    },
+    MAP: {
+      name: "MAP",
+      benchmark: 219,
+      data: [
+        {score:135,count:1},{score:136,count:1},{score:140,count:1},{score:146,count:1},{score:147,count:1},
+        {score:155,count:1},{score:165,count:1},{score:169,count:1},{score:171,count:1},{score:174,count:1},
+        {score:176,count:1},{score:177,count:1},{score:178,count:1},{score:180,count:1},{score:184,count:2},
+        {score:186,count:2},{score:187,count:1},{score:188,count:1},{score:189,count:2},{score:191,count:5},
+        {score:192,count:1},{score:193,count:1},{score:194,count:2},{score:195,count:1},{score:196,count:1},
+        {score:197,count:3},{score:198,count:2},{score:199,count:2},{score:200,count:1},{score:201,count:11},
+        {score:202,count:7},{score:203,count:6},{score:204,count:8},{score:205,count:10},{score:206,count:4},
+        {score:207,count:16},{score:208,count:9},{score:209,count:10},{score:210,count:15},{score:211,count:10},
+        {score:212,count:11},{score:213,count:6},{score:214,count:15},{score:215,count:15},{score:216,count:15},
+        {score:217,count:17},{score:218,count:17},{score:219,count:12},{score:220,count:16},{score:221,count:17},
+        {score:222,count:17},{score:223,count:10},{score:224,count:18},{score:225,count:14},{score:226,count:6},
+        {score:227,count:6},{score:228,count:8},{score:229,count:13},{score:230,count:12},{score:231,count:8},
+        {score:232,count:15},{score:233,count:7},{score:234,count:7},{score:235,count:12},{score:236,count:15},
+        {score:237,count:12},{score:238,count:6},{score:239,count:6},{score:240,count:5},{score:241,count:6},
+        {score:242,count:3},{score:243,count:9},{score:244,count:6},{score:245,count:7},{score:246,count:1},
+        {score:247,count:6},{score:248,count:3},{score:249,count:2},{score:250,count:2},{score:251,count:3},
+        {score:252,count:1},{score:253,count:5},{score:254,count:3},{score:255,count:2},{score:256,count:1},
+        {score:257,count:1},{score:258,count:1},{score:261,count:1},{score:262,count:1},{score:263,count:2},
+        {score:264,count:3},{score:265,count:1},{score:267,count:2},{score:272,count:1},
+      ]
+    }
+  };
+
+  const visualizations = [
+    { id: "dot_h", label: "Horizontal Dot Plot" },
+    { id: "dot_v", label: "Vertical Dot Plot" },
+    { id: "bar_h", label: "Horizontal Bar Chart" },
+    { id: "bar_v", label: "Vertical Bar Chart" },
+  ];
+
+  // ----------------------------
+  // State
+  // ----------------------------
+  let state = {
+    datasetKey: "ACT",
+    viz: "dot_h",
+    metBenchmark: null, // true => Yes (>= benchmark), false => No (< benchmark), null => no filter
+    scoresAbove: null,
+    scoresBelow: null,
+  };
+
+  // ----------------------------
+  // UI Helpers
+  // ----------------------------
+  function el(id){ return document.getElementById(id); }
+  function fmtInt(n){ return Number.isFinite(n) ? Math.round(n).toString() : ""; }
+
+  function buildPills(container, items, getActive, onClick){
+    container.innerHTML = "";
+    items.forEach(item => {
+      const b = document.createElement("button");
+      b.className = "pill" + (getActive(item) ? " active" : "");
+      b.type = "button";
+      b.innerHTML = `<span class="dot"></span><span>${item.label}</span>`;
+      b.addEventListener("click", () => onClick(item));
+      container.appendChild(b);
+    });
+  }
+
+  function updateSummary(){
+    const ds = datasets[state.datasetKey];
+    const parts = [
+      `${ds.name}`,
+      `Benchmark: ${ds.benchmark}`,
+      `View: ${visualizations.find(v => v.id === state.viz)?.label || ""}`
+    ];
+
+    const f = [];
+    if (state.metBenchmark === true) f.push("Met Benchmark: Yes");
+    if (state.metBenchmark === false) f.push("Met Benchmark: No");
+    if (state.scoresAbove != null) f.push(`Scores ≥ ${state.scoresAbove}`);
+    if (state.scoresBelow != null) f.push(`Scores ≤ ${state.scoresBelow}`);
+    el("activeSummary").textContent = f.length ? `Filters: ${f.join(" · ")}` : "Filters: None";
+
+    el("benchmarkHint").innerHTML = `<b>${ds.name}</b> Proficiency Benchmark line at <b>${ds.benchmark}</b>`;
+  }
+
+  // ----------------------------
+  // Filtering + Transformation
+  // ----------------------------
+  function getFilteredRows(){
+    const ds = datasets[state.datasetKey];
+    const bench = ds.benchmark;
+
+    return ds.data
+      .slice()
+      .sort((a,b) => a.score - b.score) // ensure ordered by Scale Score
+      .filter(r => r.count > 0)
+      .filter(r => {
+        if (state.metBenchmark === true) return r.score >= bench;
+        if (state.metBenchmark === false) return r.score < bench;
+        return true;
+      })
+      .filter(r => state.scoresAbove == null ? true : r.score >= state.scoresAbove)
+      .filter(r => state.scoresBelow == null ? true : r.score <= state.scoresBelow);
+  }
+
+  function rangeOfScores(rows){
+    if (!rows.length) return {min:0,max:0};
+    let min = rows[0].score, max = rows[0].score;
+    for (const r of rows){ if (r.score < min) min = r.score; if (r.score > max) max = r.score; }
+    return {min, max};
+  }
+
+  function niceStepSize(min, max){
+    const span = Math.max(1, max - min);
+    // Keep integer ticks; avoid rendering hundreds of labels for wide ranges.
+    if (span <= 60) return 1;
+    if (span <= 120) return 2;
+    if (span <= 240) return 5;
+    return 10;
+  }
+
+  // ----------------------------
+  // Chart Build
+  // ----------------------------
+  Chart.register(window['chartjs-plugin-annotation']);
+
+  const ctx = el("chart");
+  let chart = null;
+
+  function annotationFor(viz, benchmark){
+    const common = {
+      borderColor: "#000",
+      borderDash: [6,6],
+      borderWidth: 2,
+      label: {
+        display: true,
+        content: "Proficiency Benchmark",
+        color: "#000",
+        backgroundColor: "rgba(255,255,255,.9)",
+        borderColor: "rgba(0,0,0,.2)",
+        borderWidth: 1,
+        padding: 6,
+        position: "start"
+      }
+    };
+
+    if (viz === "dot_h" || viz === "bar_h") {
+      // Horizontal line (y = benchmark)
+      return {
+        benchmarkLine: {
+          type: "line",
+          yMin: benchmark,
+          yMax: benchmark,
+          ...common
+        }
+      };
+    }
+    // Vertical line (x = benchmark)
+    return {
+      benchmarkLine: {
+        type: "line",
+        xMin: benchmark,
+        xMax: benchmark,
+        ...common
+      }
+    };
+  }
+
+  function tooltipCallbacks(viz){
+    return {
+      callbacks: {
+        title: (items) => {
+          if (!items?.length) return "";
+          const raw = items[0].raw || {};
+          // scatter point: {x,y,score,count}; bar point: has raw + label
+          const score = raw.score ?? (viz === "dot_h" || viz === "bar_h" ? raw.y : raw.x);
+          return `Scale Score: ${fmtInt(score)}`;
+        },
+        label: (item) => {
+          const raw = item.raw || {};
+          const count = raw.count ?? (viz === "dot_h" || viz === "bar_h" ? raw.x : raw.y);
+          return `Number of Students: ${fmtInt(count)}`;
+        }
+      }
+    };
+  }
+
+  function buildConfig(){
+    const ds = datasets[state.datasetKey];
+    const rows = getFilteredRows();
+    const {min, max} = rangeOfScores(rows);
+    const step = niceStepSize(min, max);
+
+    const baseScales = {
+      x: {
+        grid: { color: "rgba(0,0,0,.06)" },
+        ticks: { color: "#374151" }
+      },
+      y: {
+        grid: { color: "rgba(0,0,0,.06)" },
+        ticks: { color: "#374151" }
+      }
+    };
+
+    const commonOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 180 },
+      plugins: {
+        legend: { display: false },
+        tooltip: tooltipCallbacks(state.viz),
+        annotation: { annotations: annotationFor(state.viz, ds.benchmark) },
+        title: { display: true, text: "", padding: {top: 6, bottom: 10}, font: { size: 14, weight: "700" } }
+      }
+    };
+
+    if (state.viz === "dot_h") {
+      const dataPoints = rows.map(r => ({ x: r.count, y: r.score, score: r.score, count: r.count }));
+      return {
+        type: "scatter",
+        data: {
+          datasets: [{
+            data: dataPoints,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: "rgba(0,0,0,0)",     // transparent dots
+            pointBorderColor: getComputedStyle(document.documentElement).getPropertyValue("--dot-border").trim(),
+            pointBorderWidth: 2
+          }]
+        },
+        options: {
+          ...commonOptions,
+          plugins: {
+            ...commonOptions.plugins,
+            title: { ...commonOptions.plugins.title, text: "Score Distribution Dot Plot (Horizontal)" }
+          },
+          scales: {
+            x: { ...baseScales.x, title: { display: true, text: "Number of Students" } },
+            y: {
+              ...baseScales.y,
+              title: { display: true, text: "Scale Score" },
+              type: "linear",
+              ticks: { ...baseScales.y.ticks, stepSize: step },
+            }
+          }
+        }
+      };
+    }
+
+    if (state.viz === "dot_v") {
+      const dataPoints = rows.map(r => ({ x: r.score, y: r.count, score: r.score, count: r.count }));
+      return {
+        type: "scatter",
+        data: {
+          datasets: [{
+            data: dataPoints,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: "rgba(0,0,0,0)",
+            pointBorderColor: getComputedStyle(document.documentElement).getPropertyValue("--dot-border").trim(),
+            pointBorderWidth: 2
+          }]
+        },
+        options: {
+          ...commonOptions,
+          plugins: {
+            ...commonOptions.plugins,
+            title: { ...commonOptions.plugins.title, text: "Score Distribution Dot Plot (Vertical)" }
+          },
+          scales: {
+            x: {
+              ...baseScales.x,
+              title: { display: true, text: "Scale Score" },
+              ticks: { ...baseScales.x.ticks, stepSize: step },
+            },
+            y: { ...baseScales.y, title: { display: true, text: "Number of Students" } }
+          }
+        }
+      };
+    }
+
+    if (state.viz === "bar_h") {
+      // Horizontal bars: y = score, x = count
+      const labels = rows.map(r => r.score);
+      const counts = rows.map(r => r.count);
+
+      return {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            data: counts,
+            backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--blue-bars").trim(),
+            borderColor: "rgba(37,99,235,.45)",
+            borderWidth: 1,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          ...commonOptions,
+          indexAxis: "y",
+          plugins: {
+            ...commonOptions.plugins,
+            title: { ...commonOptions.plugins.title, text: "Score Distribution Bar Graph (Horizontal)" },
+            tooltip: {
+              ...tooltipCallbacks(state.viz),
+              callbacks: {
+                title: (items) => `Scale Score: ${items?.[0]?.label ?? ""}`,
+                label: (item) => `Number of Students: ${fmtInt(item.parsed.x)}`
+              }
+            }
+          },
+          scales: {
+            x: { ...baseScales.x, title: { display: true, text: "Number of Students" } },
+            y: {
+              ...baseScales.y,
+              title: { display: true, text: "Scale Score" },
+              ticks: {
+                ...baseScales.y.ticks,
+                callback: (v) => v, // keep numeric labels
+              }
+            }
+          }
+        }
+      };
+    }
+
+    // bar_v
+    const labels = rows.map(r => r.score);
+    const counts = rows.map(r => r.count);
+
+    return {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          data: counts,
+          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--blue-bars").trim(),
+          borderColor: "rgba(37,99,235,.45)",
+          borderWidth: 1,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        ...commonOptions,
+        plugins: {
+          ...commonOptions.plugins,
+          title: { ...commonOptions.plugins.title, text: "Score Distribution Bar Graph (Vertical)" },
+          tooltip: {
+            ...tooltipCallbacks(state.viz),
+            callbacks: {
+              title: (items) => `Scale Score: ${items?.[0]?.label ?? ""}`,
+              label: (item) => `Number of Students: ${fmtInt(item.parsed.y)}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            ...baseScales.x,
+            title: { display: true, text: "Scale Score" },
+            ticks: {
+              ...baseScales.x.ticks,
+              // Keep integer ticks without forcing every integer label (which can be huge for IAR).
+              autoSkip: true,
+              maxRotation: 0
+            }
+          },
+          y: { ...baseScales.y, title: { display: true, text: "Number of Students" } }
+        }
+      }
+    };
+  }
+
+  function renderChart(){
+    updateSummary();
+    const cfg = buildConfig();
+
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, cfg);
+  }
+
+  // ----------------------------
+  // Build UI
+  // ----------------------------
+  function initUI(){
+    // Dataset pills
+    const dsItems = Object.keys(datasets).map(k => ({ id: k, label: datasets[k].name }));
+    buildPills(el("datasetPills"), dsItems, (it) => it.id === state.datasetKey, (it) => {
+      state.datasetKey = it.id;
+      // If user set above/below outside new scale range, keep but still apply.
+      renderChart();
+    });
+
+    // Met benchmark pills (Yes/No only)
+    buildPills(el("metBenchmarkPills"),
+      [{id:"yes",label:"Yes"}, {id:"no",label:"No"}],
+      (it) => (it.id === "yes" && state.metBenchmark === true) || (it.id === "no" && state.metBenchmark === false),
+      (it) => {
+        state.metBenchmark = (it.id === "yes");
+        renderChart();
+        // refresh active styles
+        initUI();
+      }
+    );
+
+    el("clearMet").onclick = () => {
+      state.metBenchmark = null;
+      renderChart();
+      initUI();
+    };
+
+    // Viz pills
+    buildPills(el("vizPills"),
+      visualizations.map(v => ({ id: v.id, label: v.label })),
+      (it) => it.id === state.viz,
+      (it) => { state.viz = it.id; renderChart(); initUI(); }
+    );
+
+    // Numeric filters
+    const above = el("scoresAbove");
+    const below = el("scoresBelow");
+
+    above.oninput = () => {
+      const v = above.value.trim();
+      state.scoresAbove = v === "" ? null : Number(v);
+      renderChart();
+    };
+    below.oninput = () => {
+      const v = below.value.trim();
+      state.scoresBelow = v === "" ? null : Number(v);
+      renderChart();
+    };
+  }
+
+  // First render
+  initUI();
+  renderChart();
+})();
+</script>
+</body>
+</html>
