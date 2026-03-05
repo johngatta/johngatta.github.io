@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>US Bubble Map – D3.js</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/topojson-client@3.1.0"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      color: #e8e8e8;
+    }
+    h1 { margin-bottom: 0.5rem; font-weight: 600; letter-spacing: -0.02em; }
+    .subtitle { opacity: 0.7; margin-bottom: 1.5rem; font-size: 0.95rem; }
+    #chart {
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .state {
+      fill: #2d3a4f;
+      stroke: #3d4f6b;
+      stroke-width: 0.5px;
+    }
+    .bubble {
+      cursor: pointer;
+      transition: filter 0.2s;
+    }
+    .bubble:hover { filter: brightness(1.2); }
+    .tooltip {
+      position: absolute;
+      visibility: hidden;
+      background: rgba(0,0,0,0.9);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      pointer-events: none;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <h1>US Bubble Map</h1>
+  <p class="subtitle">Bubbles on the United States · Size = value · Hover for city & value</p>
+  <div id="chart"></div>
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    const width = 960;
+    const height = 600;
+
+    // Cities with lon, lat (GeoJSON order) and value for bubble size
+    const cityData = [
+      { name: "New York", lon: -74.006, lat: 40.7128, value: 94 },
+      { name: "Los Angeles", lon: -118.2437, lat: 34.0522, value: 88 },
+      { name: "Chicago", lon: -87.6298, lat: 41.8781, value: 78 },
+      { name: "Houston", lon: -95.3698, lat: 29.7604, value: 72 },
+      { name: "Phoenix", lon: -112.074, lat: 33.4484, value: 68 },
+      { name: "Philadelphia", lon: -75.1652, lat: 39.9526, value: 65 },
+      { name: "San Antonio", lon: -98.4936, lat: 29.4241, value: 58 },
+      { name: "San Diego", lon: -117.1611, lat: 32.7157, value: 55 },
+      { name: "Dallas", lon: -96.797, lat: 32.7767, value: 52 },
+      { name: "San Francisco", lon: -122.4194, lat: 37.7749, value: 62 },
+      { name: "Seattle", lon: -122.3321, lat: 47.6062, value: 48 },
+      { name: "Denver", lon: -104.9903, lat: 39.7392, value: 45 },
+      { name: "Atlanta", lon: -84.388, lat: 33.749, value: 52 },
+      { name: "Miami", lon: -80.1918, lat: 25.7617, value: 48 },
+      { name: "Boston", lon: -71.0589, lat: 42.3601, value: 58 },
+    ];
+
+    const projection = d3.geoAlbersUsa()
+      .scale(1300)
+      .translate([width / 2, height / 2]);
+
+    const path = d3.geoPath().projection(projection);
+
+    const colorScale = d3.scaleOrdinal()
+      .domain(cityData.map(d => d.name))
+      .range([
+        "#e94560", "#3498db", "#16a085", "#f39c12", "#9b59b6",
+        "#1abc9c", "#e74c3c", "#2ecc71", "#e67e22", "#00b894",
+        "#6c5ce7", "#fd79a8", "#a29bfe", "#ffeaa7", "#dfe6e9"
+      ]);
+
+    const radiusScale = d3.scaleSqrt()
+      .domain([0, d3.max(cityData, d => d.value)])
+      .range([6, 32]);
+
+    const svg = d3.select("#chart")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    const g = svg.append("g");
+
+    const tooltip = d3.select("#tooltip");
+
+    // Load US map and draw
+    d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(function(us) {
+      const states = topojson.feature(us, us.objects.states);
+      g.append("path")
+        .datum(states)
+        .attr("class", "state")
+        .attr("d", path);
+
+      // Bubbles at city coordinates
+      const bubble = g.selectAll(".bubble-g")
+        .data(cityData)
+        .join("g")
+        .attr("class", "bubble-g")
+        .attr("transform", d => {
+          const pt = projection([d.lon, d.lat]);
+          if (!pt) return "translate(-999,-999)";
+          return `translate(${pt[0]},${pt[1]})`;
+        })
+        .attr("opacity", d => (projection([d.lon, d.lat]) ? 1 : 0));
+
+      bubble.append("circle")
+        .attr("class", "bubble")
+        .attr("r", d => radiusScale(d.value))
+        .attr("fill", d => colorScale(d.name))
+        .attr("fill-opacity", 0.75)
+        .attr("stroke", "rgba(255,255,255,0.4)")
+        .attr("stroke-width", 1.5)
+        .on("mouseenter", function(event, d) {
+          tooltip.style("visibility", "visible")
+            .html(`<strong>${d.name}</strong><br>Value: ${d.value}`);
+        })
+        .on("mousemove", function(event) {
+          tooltip
+            .style("top", (event.pageY - 8) + "px")
+            .style("left", (event.pageX + 10) + "px");
+        })
+        .on("mouseleave", () => tooltip.style("visibility", "hidden"));
+
+      bubble.append("text")
+        .attr("text-anchor", "middle")
+        .attr("dy", "0.35em")
+        .attr("fill", "#fff")
+        .attr("font-size", d => Math.min(radiusScale(d.value) / 1.2, 10) + "px")
+        .attr("pointer-events", "none")
+        .text(d => d.name)
+        .style("display", d => (radiusScale(d.value) > 14 ? "block" : "none"));
+    }).catch(err => {
+      console.error("Failed to load US map:", err);
+      document.querySelector("#chart").innerHTML = "<p style='padding:2rem;color:#e94560'>Failed to load map data. Check the console or try again.</p>";
+    });
+  </script>
+</body>
+</html>
