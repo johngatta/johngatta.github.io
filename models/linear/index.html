@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSV Linear Regression Tool</title>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #d1d5db;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --danger: #b91c1c;
+      --danger-soft: #fee2e2;
+      --success: #166534;
+      --success-soft: #dcfce7;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    label {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    input[type="file"],
+    select,
+    button {
+      width: 100%;
+      font: inherit;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .status {
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .status.info {
+      background: #eef2ff;
+      color: #3730a3;
+      border-color: #c7d2fe;
+    }
+
+    .status.success {
+      background: var(--success-soft);
+      color: var(--success);
+      border-color: #86efac;
+    }
+
+    .status.error {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border-color: #fecaca;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #1d4ed8;
+      font-weight: 700;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .checkbox-list {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 12px;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 0;
+      margin-bottom: 0;
+      font-weight: 400;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+      flex: 0 0 auto;
+    }
+
+    .checkbox-item span {
+      flex: 1;
+    }
+
+    .checkbox-item.disabled {
+      color: var(--muted);
+    }
+
+    .empty-checkbox-state {
+      color: var(--muted);
+      padding: 10px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: #f9fafb;
+    }
+    /* Results tiles stack vertically */
+    .results-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      align-items: stretch;
+      margin-top: 20px;
+    }
+
+    .tile {
+      width: 100%;
+      background: #fbfdff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      box-sizing: border-box;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 460px !important;
+    }
+
+    @media (max-width: 860px) {
+      .grid,
+      .controls,
+      .results-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .checkbox-list {
+        max-height: 220px;
+      }
+
+      canvas {
+        height: 340px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="card">
+      <h1>CSV Linear Regression Tool</h1>
+      <p>
+        Upload a CSV file, choose one dependent variable and one or more independent variables,
+        then run an ordinary least squares linear regression in Python with <code>statsmodels</code>.
+      </p>
+      <div id="status" class="status info">Loading Python runtime and regression libraries...</div>
+    </div>
+
+    <div class="card stack">
+      <div>
+        <label for="csvFile">CSV file</label>
+        <input id="csvFile" type="file" accept=".csv,text/csv" />
+        <div class="hint">
+          The first row should contain the variable headers. This page will coerce selected columns
+          to numbers and drop rows with missing or non-numeric values in the selected variables.
+        </div>
+      </div>
+
+      <div id="fileSummary" class="pill-row hidden"></div>
+    </div>
+
+    <div class="card hidden" id="selectionCard">
+      <h2>Variable Selection</h2>
+      <div class="controls">
+        <div>
+          <label for="dependentSelect">Dependent variable</label>
+          <select id="dependentSelect"></select>
+          <div class="hint">Choose the outcome variable to be predicted.</div>
+        </div>
+
+        <div>
+          <label for="independentCheckboxes">Independent variables</label>
+          <div id="independentCheckboxes" class="checkbox-list"></div>
+          <div class="hint">Check one or more predictors. The selected dependent variable is disabled below.</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <button id="runBtn" disabled>Run Regression</button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="resultsCard">
+      <h2>Regression Results</h2>
+      <div id="summaryPills" class="pill-row"></div>
+
+      <div class="results-grid">
+        <div class="tile">
+          <h3>Parameter Estimates</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Term</th>
+                <th>Estimate</th>
+              </tr>
+            </thead>
+            <tbody id="paramsBody"></tbody>
+          </table>
+        </div>
+
+        <div class="tile">
+          <h3>Predicted vs Actual</h3>
+          <div class="hint" style="margin-bottom: 10px;">
+            X-axis = predicted values, Y-axis = actual values.
+          </div>
+          <canvas id="regressionChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let pyodide = null;
+    let csvText = "";
+    let columnInfo = [];
+    let regressionChart = null;
+
+    const statusEl = document.getElementById("status");
+    const csvFileEl = document.getElementById("csvFile");
+    const fileSummaryEl = document.getElementById("fileSummary");
+    const selectionCardEl = document.getElementById("selectionCard");
+    const dependentSelectEl = document.getElementById("dependentSelect");
+    const independentCheckboxesEl = document.getElementById("independentCheckboxes");
+    const runBtnEl = document.getElementById("runBtn");
+    const resultsCardEl = document.getElementById("resultsCard");
+    const summaryPillsEl = document.getElementById("summaryPills");
+    const paramsBodyEl = document.getElementById("paramsBody");
+
+    function setStatus(message, type = "info") {
+      statusEl.className = `status ${type}`;
+      statusEl.textContent = message;
+    }
+
+    function showElement(el) {
+      el.classList.remove("hidden");
+    }
+
+    function hideElement(el) {
+      el.classList.add("hidden");
+    }
+
+    function formatNumber(value) {
+      if (!Number.isFinite(value)) return String(value);
+      return Number(value).toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 6
+      });
+    }
+
+    async function initializePyodide() {
+      try {
+        pyodide = await loadPyodide({
+          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.29.3/full/"
+        });
+        await pyodide.loadPackage(["pandas", "numpy", "scipy", "statsmodels"]);
+        setStatus("Python is ready. Upload a CSV file to begin.", "success");
+      } catch (error) {
+        console.error(error);
+        setStatus(
+          "Failed to load the in-browser Python runtime. Check your internet connection and try reopening the file.",
+          "error"
+        );
+      }
+    }
+
+    function getNumericLikeColumns(meta) {
+      return meta.filter((col) => col.numeric_like > 0).map((col) => col.name);
+    }
+
+    function populateFileSummary(meta, rowCount) {
+      fileSummaryEl.innerHTML = "";
+      const numericLikeCount = meta.filter((col) => col.numeric_like > 0).length;
+      const pills = [
+        `Rows detected: ${rowCount}`,
+        `Columns detected: ${meta.length}`,
+        `Numeric-like columns: ${numericLikeCount}`
+      ];
+
+      for (const text of pills) {
+        const span = document.createElement("div");
+        span.className = "pill";
+        span.textContent = text;
+        fileSummaryEl.appendChild(span);
+      }
+      showElement(fileSummaryEl);
+    }
+
+    function getSelectedIndependentVariables() {
+      return Array.from(
+        independentCheckboxesEl.querySelectorAll('input[type="checkbox"]:checked')
+      )
+        .filter((input) => !input.disabled)
+        .map((input) => input.value);
+    }
+
+    function syncRunButtonState() {
+      runBtnEl.disabled = getSelectedIndependentVariables().length === 0;
+    }
+
+    function populateVariableSelectors(meta) {
+      columnInfo = meta;
+      const numericLikeColumns = getNumericLikeColumns(meta);
+      const fallbackColumns = meta.map((col) => col.name);
+      const columnsForSelection = numericLikeColumns.length > 0 ? numericLikeColumns : fallbackColumns;
+
+      dependentSelectEl.innerHTML = "";
+      independentCheckboxesEl.innerHTML = "";
+
+      const defaultDependent = columnsForSelection[columnsForSelection.length - 1] || "";
+
+      for (const columnName of columnsForSelection) {
+        const option = document.createElement("option");
+        option.value = columnName;
+        option.textContent = columnName;
+        if (columnName === defaultDependent) {
+          option.selected = true;
+        }
+        dependentSelectEl.appendChild(option);
+      }
+
+      refreshIndependentOptions();
+      syncRunButtonState();
+      showElement(selectionCardEl);
+    }
+
+    function refreshIndependentOptions() {
+      const selectedDependent = dependentSelectEl.value;
+      const previousSelection = new Set(
+        Array.from(independentCheckboxesEl.querySelectorAll('input[type="checkbox"]:checked'))
+          .map((input) => input.value)
+      );
+      const numericLikeColumns = getNumericLikeColumns(columnInfo);
+      const fallbackColumns = columnInfo.map((col) => col.name);
+      const columnsForSelection = numericLikeColumns.length > 0 ? numericLikeColumns : fallbackColumns;
+
+      independentCheckboxesEl.innerHTML = "";
+
+      for (const columnName of columnsForSelection) {
+        const info = columnInfo.find((col) => col.name === columnName);
+        const isDependent = columnName === selectedDependent;
+        const wrapper = document.createElement("label");
+        const checkbox = document.createElement("input");
+        const textSpan = document.createElement("span");
+
+        wrapper.className = `checkbox-item${isDependent ? " disabled" : ""}`;
+        checkbox.type = "checkbox";
+        checkbox.value = columnName;
+        checkbox.disabled = isDependent;
+        checkbox.checked = !isDependent && (previousSelection.size > 0 ? previousSelection.has(columnName) : true);
+        checkbox.addEventListener("change", syncRunButtonState);
+
+        textSpan.textContent = `${columnName} (numeric-like rows: ${info ? info.numeric_like : 0})`;
+
+        wrapper.appendChild(checkbox);
+        wrapper.appendChild(textSpan);
+        independentCheckboxesEl.appendChild(wrapper);
+      }
+
+      const activeSelections = getSelectedIndependentVariables();
+      if (activeSelections.length === 0) {
+        independentCheckboxesEl.querySelectorAll('input[type="checkbox"]:not(:disabled)').forEach((checkbox) => {
+          checkbox.checked = true;
+        });
+      }
+
+      syncRunButtonState();
+    }
+
+    async function inspectCsv() {
+      const file = csvFileEl.files[0];
+      if (!file) return;
+
+      if (!pyodide) {
+        setStatus("Python is still loading. Please wait a moment and try again.", "info");
+        return;
+      }
+
+      hideElement(resultsCardEl);
+      csvText = await file.text();
+      setStatus(`Reading ${file.name}...`, "info");
+
+      try {
+        pyodide.globals.set("csv_text_js", csvText);
+        const metaJson = await pyodide.runPythonAsync(`
+import io, json, pandas as pd
+
+df = pd.read_csv(io.StringIO(csv_text_js))
+column_info = []
+for col in df.columns:
+    series = df[col]
+    numeric_like = pd.to_numeric(series, errors="coerce")
+    column_info.append({
+        "name": str(col),
+        "non_null": int(series.notna().sum()),
+        "numeric_like": int(numeric_like.notna().sum())
+    })
+
+json.dumps({
+    "row_count": int(len(df)),
+    "column_info": column_info
+})
+        `);
+
+        const meta = JSON.parse(metaJson);
+        populateFileSummary(meta.column_info, meta.row_count);
+        populateVariableSelectors(meta.column_info);
+        setStatus(`Loaded ${file.name}. Choose your variables and run the model.`, "success");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Could not read the CSV file: ${error.message}`, "error");
+        hideElement(selectionCardEl);
+        hideElement(resultsCardEl);
+      } finally {
+        try {
+          pyodide.globals.delete("csv_text_js");
+        } catch (_) {
+        }
+      }
+    }
+
+    function renderResults(result) {
+      summaryPillsEl.innerHTML = "";
+      const pills = [
+        `Dependent variable: ${result.dependent}`,
+        `Independent variables: ${result.independent.join(", ")}`,
+        `R²: ${formatNumber(result.r_squared)}`,
+        `Adjusted R²: ${formatNumber(result.adj_r_squared)}`,
+        `Rows used: ${formatNumber(result.rows_used)} / ${formatNumber(result.rows_original)}`,
+        `Rows dropped: ${formatNumber(result.rows_dropped)}`
+      ];
+
+      for (const text of pills) {
+        const pill = document.createElement("div");
+        pill.className = "pill";
+        pill.textContent = text;
+        summaryPillsEl.appendChild(pill);
+      }
+
+      paramsBodyEl.innerHTML = "";
+      for (const param of result.params) {
+        const row = document.createElement("tr");
+        const termCell = document.createElement("td");
+        const valueCell = document.createElement("td");
+        termCell.textContent = param.term;
+        valueCell.textContent = formatNumber(param.estimate);
+        row.appendChild(termCell);
+        row.appendChild(valueCell);
+        paramsBodyEl.appendChild(row);
+      }
+
+      renderChart(result.points);
+      showElement(resultsCardEl);
+    }
+
+    function renderChart(points) {
+      const ctx = document.getElementById("regressionChart").getContext("2d");
+
+      if (regressionChart) {
+        regressionChart.destroy();
+      }
+
+      const chartPoints = points;
+      const values = chartPoints.flatMap((point) => [point.x, point.y]);
+      let minVal = Math.min(...values);
+      let maxVal = Math.max(...values);
+
+      if (!Number.isFinite(minVal) || !Number.isFinite(maxVal)) {
+        minVal = 0;
+        maxVal = 1;
+      }
+
+      if (minVal === maxVal) {
+        minVal -= 1;
+        maxVal += 1;
+      }
+
+      regressionChart = new Chart(ctx, {
+        type: "scatter",
+        data: {
+          datasets: [
+            {
+              label: "Predicted vs Actual",
+              data: chartPoints,
+              pointRadius: 4
+            },
+            {
+              label: "Perfect fit (y = x)",
+              type: "line",
+              data: [
+                { x: minVal, y: minVal },
+                { x: maxVal, y: maxVal }
+              ],
+              pointRadius: 0,
+              borderWidth: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: "linear",
+              title: {
+                display: true,
+                text: "Predicted"
+              }
+            },
+            y: {
+              type: "linear",
+              title: {
+                display: true,
+                text: "Actual"
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true
+            },
+            tooltip: {
+              callbacks: {
+                label(context) {
+                  const point = context.raw;
+                  return `Predicted: ${formatNumber(point.x)}, Actual: ${formatNumber(point.y)}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    async function runRegression() {
+      if (!pyodide) {
+        setStatus("Python is not ready yet.", "error");
+        return;
+      }
+
+      if (!csvText) {
+        setStatus("Upload a CSV file first.", "error");
+        return;
+      }
+
+      const dependent = dependentSelectEl.value;
+      const independent = getSelectedIndependentVariables();
+
+      if (!dependent) {
+        setStatus("Select a dependent variable.", "error");
+        return;
+      }
+
+      if (independent.length === 0) {
+        setStatus("Select at least one independent variable.", "error");
+        return;
+      }
+
+      setStatus("Running regression in Python...", "info");
+      runBtnEl.disabled = true;
+
+      const indepProxy = pyodide.toPy(independent);
+
+      try {
+        pyodide.globals.set("csv_text_reg", csvText);
+        pyodide.globals.set("dep_var_js", dependent);
+        pyodide.globals.set("indep_vars_js", indepProxy);
+
+        const resultJson = await pyodide.runPythonAsync(`
+import io, json, pandas as pd, statsmodels.api as sm
+
+df = pd.read_csv(io.StringIO(csv_text_reg))
+columns = [dep_var_js] + list(indep_vars_js)
+work = df[columns].copy()
+
+for col in columns:
+    work[col] = pd.to_numeric(work[col], errors="coerce")
+
+work = work.dropna()
+
+if len(work) == 0:
+    raise ValueError("No complete numeric rows remain after coercing the selected columns to numbers and dropping missing values.")
+
+if len(work) <= len(indep_vars_js):
+    raise ValueError("Not enough usable rows remain to estimate the model. You need more complete rows than predictors.")
+
+y = work[dep_var_js].astype(float)
+X = work[list(indep_vars_js)].astype(float)
+X = sm.add_constant(X, has_constant="add")
+
+model = sm.OLS(y, X).fit()
+pred = model.predict(X)
+
+json.dumps({
+    "rows_original": int(len(df)),
+    "rows_used": int(len(work)),
+    "rows_dropped": int(len(df) - len(work)),
+    "dependent": str(dep_var_js),
+    "independent": [str(v) for v in list(indep_vars_js)],
+    "r_squared": float(model.rsquared),
+    "adj_r_squared": float(model.rsquared_adj),
+    "params": [
+        {
+            "term": str(term),
+            "estimate": float(model.params.loc[term])
+        }
+        for term in model.params.index
+    ],
+    "points": [
+        {
+            "x": float(predicted),
+            "y": float(actual)
+        }
+        for actual, predicted in zip(y.tolist(), pred.tolist())
+    ]
+})
+        `);
+
+        const result = JSON.parse(resultJson);
+        renderResults(result);
+        setStatus("Regression completed successfully.", "success");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Regression failed: ${error.message}`, "error");
+        hideElement(resultsCardEl);
+      } finally {
+        try {
+          pyodide.globals.delete("csv_text_reg");
+          pyodide.globals.delete("dep_var_js");
+          pyodide.globals.delete("indep_vars_js");
+        } catch (_) {
+        }
+        indepProxy.destroy();
+        syncRunButtonState();
+      }
+    }
+
+    csvFileEl.addEventListener("change", inspectCsv);
+    dependentSelectEl.addEventListener("change", refreshIndependentOptions);
+    independentCheckboxesEl.addEventListener("change", syncRunButtonState);
+    runBtnEl.addEventListener("click", runRegression);
+
+    initializePyodide();
+  </script>
+</body>
+</html>
